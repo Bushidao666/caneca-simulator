@@ -16,8 +16,8 @@ export default async function handler(req, res) {
     const { name, color = "#ffffff", texture = null, settings = {} } = req.body || {};
     if (!name) return res.status(400).json({ error: "name is required" });
     const { rows } = await query(
-      "insert into mugs (name, color, texture, settings) values ($1, $2, $3, $4) returning *",
-      [name, color, texture, settings]
+      "insert into mugs (name, color, texture, settings) values ($1, $2, $3, $4::jsonb) returning *",
+      [name, color, texture, JSON.stringify(settings || {})]
     );
     return res.status(201).json(rows[0]);
   }

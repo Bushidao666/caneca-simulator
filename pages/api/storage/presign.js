@@ -1,7 +1,7 @@
-import { getMinio, getBucket, ensureBucket, getPublicBaseUrl } from "../../../src/lib/storage";
+import { getMinio, getMinioPublic, getBucket, ensureBucket, getPublicBaseUrl } from "../../../src/lib/storage";
 
 export default async function handler(req, res) {
-  const minio = getMinio();
+  const minio = getMinio() || getMinioPublic();
   if (!minio) return res.status(200).json({ enabled: false });
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 

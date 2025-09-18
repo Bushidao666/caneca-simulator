@@ -49,10 +49,10 @@ export default function AdminPage() {
           onUpdate={updateMug}
           onRemove={removeMug}
           onSave={async (mug) => {
-            // salva tudo que estiver no objeto atual (inclui settings e textura já processada)
             try {
-              await apiUpdateMug(mug.id, { name: mug.name, color: mug.color, texture: mug.texture, settings: mug.settings });
-            } catch {}
+              const { list } = await apiUpdateMug(mug.id, { name: mug.name, color: mug.color, texture: mug.texture, settings: mug.settings });
+              setMugs(list);
+            } catch (e) {}
           }}
         />
       </main>

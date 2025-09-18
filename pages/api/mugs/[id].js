@@ -22,10 +22,10 @@ export default async function handler(req, res) {
            name = coalesce($1, name),
            color = coalesce($2, color),
            texture = $3,
-           settings = coalesce($4, settings),
+           settings = coalesce($4::jsonb, settings),
            updated_at = now()
          where id = $5 returning *`,
-        [name ?? null, color ?? null, texture ?? null, settings ?? null, id]
+        [name ?? null, color ?? null, texture ?? null, settings ? JSON.stringify(settings) : null, id]
       );
       return rows[0] ? res.status(200).json(rows[0]) : res.status(404).json({ error: "Not found" });
     } catch (error) {
