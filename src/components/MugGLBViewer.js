@@ -21,6 +21,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
   const pmremRef = useRef();
   const isActiveRef = useRef(true);
   const [modelReady, setModelReady] = useState(false);
+  const [localTexture, setLocalTexture] = useState(null);
 
   const renderLoop = useCallback(() => {
     animationIdRef.current = requestAnimationFrame(renderLoop);
@@ -252,16 +253,18 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
   }, [settings?.envUrl]);
 
   useEffect(() => {
+    const texSrc = localTexture || texture || null;
     console.log("=== APLICANDO TEXTURA ===");
-    console.log("Texture prop:", texture ? `${texture.substring(0, 50)}...` : "null");
+    console.log("Texture src:", texSrc ? `${texSrc.substring(0, 50)}...` : "null");
     
     // Selecionar o material alvo para textura (prioriza alvo/ corpo)
-    let targetMat = targetTextureMaterialRef.current || bodyMaterialRef.current;
+    // Priorizar material do corpo da caneca; evitar aplicar em planos/pedestais
+    let targetMat = bodyMaterialRef.current || targetTextureMaterialRef.current;
     if (!targetMat) targetMat = paintMaterialsRef.current?.[0];
     const uniqueMaterials = [targetMat].filter(Boolean);
     console.log("Material alvo para textura:", targetMat?.type);
     
-    if (!uniqueMaterials.length) {
+    if (!uniqueMaterials.length || !texSrc) {
       console.warn("Nenhum material encontrado para aplicar textura!");
       return;
     }
@@ -279,7 +282,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
       return;
     }
     
-    const url = normalizeTextureUrl(texture);
+    const url = normalizeTextureUrl(texSrc);
     console.log("URL normalizada:", url.substring(0, 100));
     
     const loader = new THREE.TextureLoader();
@@ -334,11 +337,11 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
       // Fallback: tentar carregar diretamente
       console.log("Tentando fallback...");
       const loader2 = new THREE.TextureLoader();
-      loader2.load(texture, applyTexture, undefined, (error2) => {
+      loader2.load(texSrc, applyTexture, undefined, (error2) => {
         console.error("Falha completa ao carregar textura:", error2);
       });
     });
-  }, [texture, modelReady]);
+  }, [texture, localTexture, modelReady]);
 
   // Apply orbit controls settings
   useEffect(() => {
@@ -357,6 +360,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
     reader.onload = () => {
       const dataUrl = reader.result;
       currentTextureUrlRef.current = dataUrl;
+      setLocalTexture(dataUrl);
       onChange && onChange({ texture: dataUrl });
     };
     reader.readAsDataURL(file);
@@ -366,8 +370,14 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
       URL.revokeObjectURL(currentTextureUrlRef.current);
     }
     currentTextureUrlRef.current = null;
+    setLocalTexture(null);
     onChange && onChange({ texture: null });
   };
+
+  // Quando o prop texture chegar do servidor (URL pública), limpamos o preview local
+  useEffect(() => {
+    if (texture) setLocalTexture(null);
+  }, [texture]);
 
   return (
     <div className="viewer">
