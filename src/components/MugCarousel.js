@@ -32,7 +32,7 @@ export default function MugCarousel({ mugs }) {
         {mug ? (
           <div className="slide-inner">
             <div className="slide-title">{mug.name}</div>
-            <MugGLBViewer color={mug.color} texture={mug.texture} />
+            <MugGLBViewer color={mug.color} texture={mug.texture} settings={mug.settings} />
           </div>
         ) : (
           <div className="empty">Nenhuma caneca disponível.</div>
@@ -47,7 +47,7 @@ export default function MugCarousel({ mugs }) {
       <Modal open={open} onClose={() => setOpen(false)} title={mug?.name || "Visualizar caneca"}>
         {mug ? (
           <div style={{ position: "absolute", inset: 0 }}>
-            <MugGLBViewer color={mug.color} texture={mug.texture} />
+            <MugGLBViewer color={mug.color} texture={mug.texture} settings={mug.settings} />
           </div>
         ) : null}
       </Modal>

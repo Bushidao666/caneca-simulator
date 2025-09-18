@@ -1,15 +1,13 @@
 import Link from "next/link";
 import MugCarousel from "../src/components/MugCarousel";
-import { apiListMugs } from "../src/storage/mugStorage";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Trophy, Settings } from "lucide-react";
+import { ensureMugsTable, query } from "../src/lib/db";
 
-export default function HomePage() {
-  const [mugs, setMugs] = useState([]);
+export default function HomePage({ initialMugs = [] }) {
+  const [mugs, setMugs] = useState(initialMugs);
 
-  useEffect(() => {
-    apiListMugs().then(setMugs).catch(() => setMugs([]));
-  }, []);
+  // Sem refetch no client: usamos somente dados do DB via SSR
 
   return (
     <div className="page">
@@ -24,5 +22,15 @@ export default function HomePage() {
       </main>
     </div>
   );
+}
+
+export async function getServerSideProps() {
+  try {
+    await ensureMugsTable();
+    const { rows } = await query("select * from mugs order by id asc");
+    return { props: { initialMugs: rows } };
+  } catch (e) {
+    return { props: { initialMugs: [] } };
+  }
 }
 

@@ -253,15 +253,11 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
     console.log("=== APLICANDO TEXTURA ===");
     console.log("Texture prop:", texture ? `${texture.substring(0, 50)}...` : "null");
     
-    // Aplicar textura a TODOS os materiais disponíveis para garantir visibilidade
-    const allMaterials = paintMaterialsRef.current.length > 0 ? paintMaterialsRef.current : [];
-    if (targetTextureMaterialRef.current) allMaterials.push(targetTextureMaterialRef.current);
-    if (bodyMaterialRef.current) allMaterials.push(bodyMaterialRef.current);
-    if (colorMaterialRef.current) allMaterials.push(colorMaterialRef.current);
-    
-    // Remover duplicatas
-    const uniqueMaterials = [...new Set(allMaterials)].filter(Boolean);
-    console.log("Materiais únicos para textura:", uniqueMaterials.length);
+    // Selecionar o material alvo para textura (prioriza alvo/ corpo)
+    let targetMat = targetTextureMaterialRef.current || bodyMaterialRef.current;
+    if (!targetMat) targetMat = paintMaterialsRef.current?.[0];
+    const uniqueMaterials = [targetMat].filter(Boolean);
+    console.log("Material alvo para textura:", targetMat?.type);
     
     if (!uniqueMaterials.length) {
       console.warn("Nenhum material encontrado para aplicar textura!");
@@ -319,14 +315,14 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
       tex.anisotropy = Math.min(16, maxAniso);
       tex.needsUpdate = true;
       
-      uniqueMaterials.forEach((mat, index) => {
-        console.log(`Aplicando textura ao material ${index}:`, mat.type);
+      const mat = uniqueMaterials[0];
+      if (mat) {
+        console.log(`Aplicando textura ao material alvo:`, mat.type);
         if (mat.map) mat.map.dispose();
-        mat.map = tex.clone();
+        mat.map = tex;
         mat.map.needsUpdate = true;
-        // Não sobrescrever a cor definida pelo usuário
         mat.needsUpdate = true;
-      });
+      }
       console.log("Textura aplicada a todos os materiais!");
     };
     
