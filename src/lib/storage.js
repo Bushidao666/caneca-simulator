@@ -19,6 +19,43 @@ export function getBucket() {
   return process.env.MINIO_BUCKET || "canecas";
 }
 
+function parseEndpoint(urlLike) {
+  try {
+    const u = new URL(urlLike.startsWith('http') ? urlLike : `https://${urlLike}`);
+    return { host: u.hostname, port: u.port ? Number(u.port) : (u.protocol === 'https:' ? 443 : 80), useSSL: u.protocol === 'https:' };
+  } catch {
+    return null;
+  }
+}
+
+export function getMinioPublic() {
+  // Prefer explicit public endpoint/host
+  let host = process.env.MINIO_PUBLIC_HOST;
+  let port = process.env.MINIO_PUBLIC_PORT ? Number(process.env.MINIO_PUBLIC_PORT) : undefined;
+  let useSSL;
+  const endpoint = process.env.MINIO_PUBLIC_ENDPOINT;
+  if (endpoint) {
+    const parsed = parseEndpoint(endpoint);
+    if (parsed) {
+      host = parsed.host;
+      port = parsed.port;
+      useSSL = parsed.useSSL;
+    }
+  }
+  if (!host && process.env.MINIO_ENDPOINT) {
+    const parsed = parseEndpoint(process.env.MINIO_ENDPOINT);
+    if (parsed) {
+      host = parsed.host; port = parsed.port; useSSL = parsed.useSSL;
+    }
+  }
+  if (!host) return null;
+  if (useSSL === undefined) useSSL = String(port) === '443';
+  const accessKey = process.env.MINIO_ACCESS_KEY || process.env.MINIO_ROOT_USER;
+  const secretKey = process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD;
+  if (!accessKey || !secretKey) return null;
+  return new Client({ endPoint: host, port: port || (useSSL ? 443 : 80), useSSL, accessKey, secretKey });
+}
+
 export function getPublicBaseUrl() {
   // Preferir MINIO_PUBLIC_URL explícito
   if (process.env.MINIO_PUBLIC_URL) return process.env.MINIO_PUBLIC_URL.replace(/\/$/, "");
@@ -34,7 +71,9 @@ export function getPublicBaseUrl() {
 }
 
 export async function ensureBucket() {
-  const minio = getMinio();
+  // Tenta com client privado, depois público
+  let minio = getMinio();
+  if (!minio) minio = getMinioPublic();
   if (!minio) return false;
   const bucket = getBucket();
   const exists = await minio.bucketExists(bucket).catch(() => false);
