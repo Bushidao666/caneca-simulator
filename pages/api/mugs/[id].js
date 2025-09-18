@@ -6,16 +6,18 @@ export const config = {
 
 export default async function handler(req, res) {
   const { id } = req.query;
+  console.log("[MUGS_ID] method=", req.method, "id=", id);
   try {
     await ensureMugsTable();
   } catch (e) {
+    console.error("[MUGS_ID] ensureMugsTable failed:", e?.message);
     return res.status(500).json({ error: "DB init failed" });
   }
 
   if (req.method === "PUT") {
     try {
       const { name, color, texture, settings } = req.body || {};
-      console.log("Updating mug:", { id, name, color, textureLength: texture?.length, settings });
+      console.log("[MUGS_ID][PUT] body=", { id, name, color, textureLength: texture?.length, settings });
       
       const { rows } = await query(
         `update mugs set
@@ -27,9 +29,10 @@ export default async function handler(req, res) {
          where id = $5 returning *`,
         [name ?? null, color ?? null, texture ?? null, settings ? JSON.stringify(settings) : null, id]
       );
+      console.log("[MUGS_ID][PUT] updated=", rows?.[0]);
       return rows[0] ? res.status(200).json(rows[0]) : res.status(404).json({ error: "Not found" });
     } catch (error) {
-      console.error("Error updating mug:", error);
+      console.error("[MUGS_ID][PUT] error:", error);
       return res.status(500).json({ error: "Database error", details: error.message });
     }
   }
@@ -41,6 +44,7 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     const { rows } = await query("select * from mugs where id = $1", [id]);
+    console.log("[MUGS_ID][GET] rows=", rows?.length);
     return rows[0] ? res.status(200).json(rows[0]) : res.status(404).json({ error: "Not found" });
   }
 

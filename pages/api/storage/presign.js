@@ -12,12 +12,15 @@ export default async function handler(req, res) {
   const bucket = getBucket();
   const objectName = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9_.-]/g, "_")}`;
   try {
+    console.log("[PRESIGN] bucket=", bucket, "object=", objectName, "contentType=", contentType);
     const policy = await minio.presignedPutObject(bucket, objectName, 60 * 5);
     const publicBase = getPublicBaseUrl();
     const publicUrl = publicBase ? `${publicBase}/${bucket}/${objectName}` : `/${bucket}/${objectName}`;
+    console.log("[PRESIGN] url=", policy.substring(0,80)+"...", "publicUrl=", publicUrl);
     return res.status(200).json({ enabled: true, url: policy, publicUrl });
   } catch (e) {
-    return res.status(500).json({ enabled: false, error: "presign failed" });
+    console.error("[PRESIGN] error:", e);
+    return res.status(500).json({ enabled: false, error: "presign failed", details: e?.message });
   }
 }
 

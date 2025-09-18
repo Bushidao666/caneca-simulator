@@ -32,12 +32,14 @@ export async function apiUpdateMug(id, patch) {
   // Se incluir arquivo DataURL, opcionalmente subimos para MinIO
   if (patch?.texture && patch.texture.startsWith("data:")) {
     try {
+      console.log("[CLIENT] uploading texture via presign for id=", id);
       const pres = await fetch("/api/storage/presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: `mug_${id}.png`, contentType: "image/png" })
       });
       const presData = await pres.json();
+      console.log("[CLIENT] presign texture resp=", pres.status, presData);
       if (presData.enabled && presData.url) {
         // converter dataURL em Blob
         const blob = await (await fetch(patch.texture)).blob();
@@ -57,6 +59,7 @@ export async function apiUpdateMug(id, patch) {
         body: JSON.stringify({ filename: `env_${id}.${ext}`, contentType })
       });
       const presData = await pres.json();
+      console.log("[CLIENT] presign env resp=", pres.status, presData);
       if (presData.enabled && presData.url) {
         const blob = await (await fetch(patch.settings.envUrl)).blob();
         await fetch(presData.url, { method: "PUT", headers: { "Content-Type": blob.type }, body: blob });
@@ -64,9 +67,12 @@ export async function apiUpdateMug(id, patch) {
       }
     } catch {}
   }
+  console.log("[CLIENT] PUT /api/mugs/", id, "body:", patch);
   const res = await fetch(`/api/mugs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+  console.log("[CLIENT] PUT status:", res.status);
   if (!res.ok) throw new Error("update failed");
   const updated = await res.json();
+  console.log("[CLIENT] updated resp:", updated);
   const list = await apiListMugs();
   return { updated, list };
 }
