@@ -55,7 +55,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.0;
+    renderer.toneMappingExposure = 0.9;
     renderer.physicallyCorrectLights = true;
     rendererRef.current = renderer;
     container.appendChild(renderer.domElement);
@@ -64,9 +64,9 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
     cameraRef.current = camera;
     scene.add(camera);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.6);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.3);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
     dir.position.set(2, 3, 4);
     scene.add(dir);
 
@@ -324,10 +324,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
         if (mat.map) mat.map.dispose();
         mat.map = tex.clone();
         mat.map.needsUpdate = true;
-        // Manter cor branca para mostrar a textura
-        if (mat.color) {
-          mat.color.set("#ffffff");
-        }
+        // Não sobrescrever a cor definida pelo usuário
         mat.needsUpdate = true;
       });
       console.log("Textura aplicada a todos os materiais!");
