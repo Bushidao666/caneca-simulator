@@ -1,9 +1,9 @@
 import { useState } from "react";
 import MugGLBViewer from "./MugGLBViewer";
 import Modal from "./Modal";
-import { Trash2 } from "lucide-react";
+import { Trash2, Save } from "lucide-react";
 
-export default function MugGrid({ mugs, editable = false, onUpdate, onRemove }) {
+export default function MugGrid({ mugs, editable = false, onUpdate, onRemove, onSave }) {
   const [openId, setOpenId] = useState(null);
   const openMug = mugs?.find((m) => m.id === openId);
 
@@ -57,6 +57,11 @@ export default function MugGrid({ mugs, editable = false, onUpdate, onRemove }) 
                 <div className="control-group" style={{ gridColumn: "span 2" }}>
                   <label>Ambiente (HDR/Imagem URL)</label>
                   <input type="text" placeholder="https://.../studio.hdr" defaultValue={mug.settings?.envUrl ?? ""} onChange={(e) => onUpdate && onUpdate(mug.id, { settings: { ...(mug.settings||{}), envUrl: e.target.value } })} />
+                </div>
+                <div className="control-group" style={{ alignSelf: "end" }}>
+                  <button className="btn btn-primary" onClick={() => onSave && onSave(mug)}>
+                    <Save size={16} />Salvar
+                  </button>
                 </div>
               </div>
             ) : null}

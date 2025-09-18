@@ -46,6 +46,24 @@ export async function apiUpdateMug(id, patch) {
       }
     } catch {}
   }
+  // Upload opcional do ambiente (HDR/Imagem) se vier como Data URL
+  if (patch?.settings?.envUrl && String(patch.settings.envUrl).startsWith("data:")) {
+    try {
+      const contentType = patch.settings.envUrl.slice(5, patch.settings.envUrl.indexOf(";"));
+      const ext = contentType.includes("hdr") ? "hdr" : (contentType.includes("png") ? "png" : "jpg");
+      const pres = await fetch("/api/storage/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: `env_${id}.${ext}`, contentType })
+      });
+      const presData = await pres.json();
+      if (presData.enabled && presData.url) {
+        const blob = await (await fetch(patch.settings.envUrl)).blob();
+        await fetch(presData.url, { method: "PUT", headers: { "Content-Type": blob.type }, body: blob });
+        patch.settings = { ...(patch.settings || {}), envUrl: presData.publicUrl };
+      }
+    } catch {}
+  }
   const res = await fetch(`/api/mugs/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
   if (!res.ok) throw new Error("update failed");
   const updated = await res.json();

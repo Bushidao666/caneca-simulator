@@ -43,7 +43,18 @@ export default function AdminPage() {
         </div>
       </header>
       <main className="container">
-        <MugGrid mugs={mugs} editable onUpdate={updateMug} onRemove={removeMug} />
+        <MugGrid
+          mugs={mugs}
+          editable
+          onUpdate={updateMug}
+          onRemove={removeMug}
+          onSave={async (mug) => {
+            // salva tudo que estiver no objeto atual (inclui settings e textura já processada)
+            try {
+              await apiUpdateMug(mug.id, { name: mug.name, color: mug.color, texture: mug.texture, settings: mug.settings });
+            } catch {}
+          }}
+        />
       </main>
     </div>
   );
