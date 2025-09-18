@@ -14,17 +14,18 @@ export default async function handler(req, res) {
 
   if (req.method === "PUT") {
     try {
-      const { name, color, texture } = req.body || {};
-      console.log("Updating mug:", { id, name, color, textureLength: texture?.length });
+      const { name, color, texture, settings } = req.body || {};
+      console.log("Updating mug:", { id, name, color, textureLength: texture?.length, settings });
       
       const { rows } = await query(
         `update mugs set
            name = coalesce($1, name),
            color = coalesce($2, color),
            texture = $3,
+           settings = coalesce($4, settings),
            updated_at = now()
-         where id = $4 returning *`,
-        [name ?? null, color ?? null, texture ?? null, id]
+         where id = $5 returning *`,
+        [name ?? null, color ?? null, texture ?? null, settings ?? null, id]
       );
       return rows[0] ? res.status(200).json(rows[0]) : res.status(404).json({ error: "Not found" });
     } catch (error) {

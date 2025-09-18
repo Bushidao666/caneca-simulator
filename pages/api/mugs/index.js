@@ -13,11 +13,11 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { name, color = "#ffffff", texture = null } = req.body || {};
+    const { name, color = "#ffffff", texture = null, settings = {} } = req.body || {};
     if (!name) return res.status(400).json({ error: "name is required" });
     const { rows } = await query(
-      "insert into mugs (name, color, texture) values ($1, $2, $3) returning *",
-      [name, color, texture]
+      "insert into mugs (name, color, texture, settings) values ($1, $2, $3, $4) returning *",
+      [name, color, texture, settings]
     );
     return res.status(201).json(rows[0]);
   }

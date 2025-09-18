@@ -22,6 +22,8 @@ export async function ensureMugsTable() {
   );
   `;
   await cached.query(sql);
+  // Migrações idempotentes
+  await cached.query("alter table mugs add column if not exists settings jsonb default '{}'::jsonb");
 }
 
 export async function query(text, params) {

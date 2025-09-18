@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Palette, Image, Trash2 } from "lucide-react";
 
-export default function MugGLBViewer({ color = "#ffffff", texture = null, editable = false, onChange }) {
+export default function MugGLBViewer({ color = "#ffffff", texture = null, settings = {}, editable = false, onChange }) {
   const containerRef = useRef(null);
   const rendererRef = useRef();
   const sceneRef = useRef();
@@ -16,6 +18,8 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
   const targetTextureMaterialRef = useRef(null);
   const animationIdRef = useRef();
   const currentTextureUrlRef = useRef(null);
+  const pmremRef = useRef();
+  const isActiveRef = useRef(true);
 
   const renderLoop = useCallback(() => {
     animationIdRef.current = requestAnimationFrame(renderLoop);
@@ -47,9 +51,12 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
     scene.background = new THREE.Color(0x111111);
     sceneRef.current = scene;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.physicallyCorrectLights = true;
     rendererRef.current = renderer;
     container.appendChild(renderer.domElement);
 
@@ -57,11 +64,17 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
     cameraRef.current = camera;
     scene.add(camera);
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 1);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.6);
     scene.add(hemi);
-    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
     dir.position.set(2, 3, 4);
     scene.add(dir);
+
+    // Environment lighting (IBL) para melhorar o realismo
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    pmremRef.current = pmrem;
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTex;
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -163,6 +176,13 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
     const ro = new ResizeObserver(resize);
     ro.observe(container);
     window.addEventListener("resize", resize);
+    const visHandler = () => {
+      isActiveRef.current = !document.hidden;
+      if (isActiveRef.current && !animationIdRef.current) {
+        renderLoop();
+      }
+    };
+    document.addEventListener("visibilitychange", visHandler);
     resize();
 
     renderLoop();
@@ -171,6 +191,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
       cancelAnimationFrame(animationIdRef.current);
       window.removeEventListener("resize", resize);
       ro.disconnect();
+      document.removeEventListener("visibilitychange", visHandler);
       if (rendererRef.current) {
         rendererRef.current.dispose();
         if (renderer.domElement && renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
@@ -198,6 +219,35 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
     const m = colorMaterialRef.current;
     if (m && m.color) { m.color.set(color); m.needsUpdate = true; }
   }, [color]);
+
+  // Apply environment map from settings.envUrl (HDR or image)
+  useEffect(() => {
+    const scene = sceneRef.current;
+    const pmrem = pmremRef.current;
+    if (!scene || !pmrem) return;
+    const url = settings?.envUrl;
+    if (!url) {
+      // keep RoomEnvironment already set on init
+      return;
+    }
+    const tryHDR = /\.hdr$/i.test(url);
+    if (tryHDR) {
+      new RGBELoader().setDataType(THREE.UnsignedByteType).load(url, (hdrTex) => {
+        const envMap = pmrem.fromEquirectangular(hdrTex).texture;
+        hdrTex.dispose();
+        scene.environment = envMap;
+      });
+    } else {
+      const tl = new THREE.TextureLoader();
+      tl.load(url, (tex) => {
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        tex.encoding = THREE.sRGBEncoding;
+        const envMap = pmrem.fromEquirectangular(tex).texture;
+        tex.dispose();
+        scene.environment = envMap;
+      });
+    }
+  }, [settings?.envUrl]);
 
   useEffect(() => {
     console.log("=== APLICANDO TEXTURA ===");
@@ -243,6 +293,30 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
       tex.flipY = false;
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.RepeatWrapping;
+      // Corrigir inversão vertical base
+      tex.repeat.y = -1;
+      tex.offset.y = 1;
+      // Apply user transforms from settings
+      const repX = Number(settings?.repeatX ?? 1);
+      const repY = Number(settings?.repeatY ?? 1);
+      const offX = Number(settings?.offsetX ?? 0);
+      const offY = Number(settings?.offsetY ?? 0);
+      const rotDeg = Number(settings?.rotation ?? 0);
+      // scale
+      tex.repeat.x *= repX;
+      tex.repeat.y *= repY; // already negative base for flip
+      // offset (y invert)
+      tex.offset.x += offX;
+      tex.offset.y += -offY;
+      // rotation about center
+      tex.center.set(0.5, 0.5);
+      tex.rotation = THREE.MathUtils.degToRad(rotDeg);
+      // Qualidade: mipmaps e anisotropia
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      const maxAniso = rendererRef.current?.capabilities?.getMaxAnisotropy?.() || 8;
+      tex.anisotropy = Math.min(16, maxAniso);
       tex.needsUpdate = true;
       
       uniqueMaterials.forEach((mat, index) => {
@@ -270,6 +344,15 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, editab
       });
     });
   }, [texture]);
+
+  // Apply orbit controls settings
+  useEffect(() => {
+    if (!controlsRef.current) return;
+    const auto = settings?.autoRotate ?? true;
+    const speed = settings?.autoRotateSpeed ?? 1.0;
+    controlsRef.current.autoRotate = !!auto;
+    controlsRef.current.autoRotateSpeed = Number(speed);
+  }, [settings?.autoRotate, settings?.autoRotateSpeed]);
 
   const handleColorChange = (e) => onChange && onChange({ color: e.target.value });
   const handleTextureChange = (e) => {
