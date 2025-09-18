@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -20,6 +20,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
   const currentTextureUrlRef = useRef(null);
   const pmremRef = useRef();
   const isActiveRef = useRef(true);
+  const [modelReady, setModelReady] = useState(false);
 
   const renderLoop = useCallback(() => {
     animationIdRef.current = requestAnimationFrame(renderLoop);
@@ -160,6 +161,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
         controls.maxDistance = radius * 50;
 
         scene.add(object);
+        setModelReady(true);
         resize();
       },
       undefined,
@@ -336,7 +338,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
         console.error("Falha completa ao carregar textura:", error2);
       });
     });
-  }, [texture]);
+  }, [texture, modelReady]);
 
   // Apply orbit controls settings
   useEffect(() => {

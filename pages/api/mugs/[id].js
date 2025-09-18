@@ -17,17 +17,18 @@ export default async function handler(req, res) {
   if (req.method === "PUT") {
     try {
       const { name, color, texture, settings } = req.body || {};
-      console.log("[MUGS_ID][PUT] body=", { id, name, color, textureLength: texture?.length, settings });
+      const textureProvided = Object.prototype.hasOwnProperty.call(req.body || {}, "texture");
+      console.log("[MUGS_ID][PUT] body=", { id, name, color, textureLength: texture?.length, settings, textureProvided });
       
       const { rows } = await query(
         `update mugs set
            name = coalesce($1, name),
            color = coalesce($2, color),
-           texture = $3,
+           texture = case when $6 then $3 else texture end,
            settings = coalesce($4::jsonb, settings),
            updated_at = now()
          where id = $5 returning *`,
-        [name ?? null, color ?? null, texture ?? null, settings ? JSON.stringify(settings) : null, id]
+        [name ?? null, color ?? null, texture ?? null, settings ? JSON.stringify(settings) : null, id, textureProvided]
       );
       console.log("[MUGS_ID][PUT] updated=", rows?.[0]);
       return rows[0] ? res.status(200).json(rows[0]) : res.status(404).json({ error: "Not found" });
