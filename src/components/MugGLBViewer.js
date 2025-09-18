@@ -16,6 +16,7 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
   const colorMaterialRef = useRef();
   const paintMaterialsRef = useRef([]);
   const targetTextureMaterialRef = useRef(null);
+  const labelMaterialRef = useRef(null);
   const animationIdRef = useRef();
   const currentTextureUrlRef = useRef(null);
   const pmremRef = useRef();
@@ -126,6 +127,11 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
             if (obj.name === "Mug_Porcelain_PBR002_0") {
               colorMaterialRef.current = materials[0];
               console.log("Color material definido:", materials[0]);
+            }
+            // Possível rótulo/área de estampa (planos/meshes auxiliares)
+            if (/plane/i.test(obj.name) || /label/i.test(obj.name) || /material/i.test(obj.name)) {
+              labelMaterialRef.current = materials[0];
+              console.log("Label material definido:", obj.name, materials[0]);
             }
             if (!bodyMaterialRef.current) bodyMaterialRef.current = materials[0];
             else if (!colorMaterialRef.current) colorMaterialRef.current = materials[0];
@@ -258,11 +264,11 @@ export default function MugGLBViewer({ color = "#ffffff", texture = null, settin
     console.log("Texture src:", texSrc ? `${texSrc.substring(0, 50)}...` : "null");
     
     // Selecionar o material alvo para textura (prioriza alvo/ corpo)
-    // Priorizar material do corpo da caneca; evitar aplicar em planos/pedestais
-    let targetMat = bodyMaterialRef.current || targetTextureMaterialRef.current;
+    // Priorizar material de rótulo/plano, depois corpo da caneca
+    let targetMat = labelMaterialRef.current || bodyMaterialRef.current || targetTextureMaterialRef.current;
     if (!targetMat) targetMat = paintMaterialsRef.current?.[0];
     const uniqueMaterials = [targetMat].filter(Boolean);
-    console.log("Material alvo para textura:", targetMat?.type);
+    console.log("Material alvo para textura:", targetMat?.type, "(label?=", !!labelMaterialRef.current, ")");
     
     if (!uniqueMaterials.length || !texSrc) {
       console.warn("Nenhum material encontrado para aplicar textura!");
